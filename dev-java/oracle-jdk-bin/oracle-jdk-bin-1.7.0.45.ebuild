@@ -1,6 +1,6 @@
 # Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/dev-java/oracle-jdk-bin/oracle-jdk-bin-1.7.0.17.ebuild,v 1.2 2013/03/07 18:45:53 ago Exp $
+# $Header: /var/cvsroot/gentoo-x86/dev-java/oracle-jdk-bin/oracle-jdk-bin-1.7.0.45.ebuild,v 1.4 2013/10/27 09:56:15 tomwij Exp $
 
 EAPI="5"
 
@@ -11,18 +11,18 @@ JDK_URI="http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-
 JCE_URI="http://www.oracle.com/technetwork/java/javase/downloads/jce-7-download-432124.html"
 # This is a list of archs supported by this update.
 # Currently arm comes and goes.
-AT_AVAILABLE=( amd64 x86 x64-solaris x86-solaris sparc-solaris sparc64-solaris )
+AT_AVAILABLE=( amd64 )
 # Sometimes some or all of the demos are missing, this is to not have to rewrite half
 # the ebuild when it happens.
-DEMOS_AVAILABLE=( amd64 x86 x64-solaris x86-solaris sparc-solaris sparc64-solaris )
-FX_VERSION="2_2_7"
+DEMOS_AVAILABLE=( )
+FX_VERSION="2_2_45"
 
 MY_PV="$(get_version_component_range 2)u$(get_version_component_range 4)"
 S_PV="$(replace_version_separator 3 '_')"
 
 AT_x86="jdk-${MY_PV}-linux-i586.tar.gz"
 AT_amd64="jdk-${MY_PV}-linux-x64.tar.gz"
-AT_arm="jdk-${MY_PV}-linux-arm-sfp.tar.gz"
+AT_arm="jdk-${MY_PV}-linux-arm-vfp-sflt.tar.gz jdk-${MY_PV}-linux-arm-vfp-hflt.tar.gz"
 AT_x86_solaris="jdk-${MY_PV}-solaris-i586.tar.gz"
 AT_x64_solaris="${AT_x86_solaris} jdk-${MY_PV}-solaris-x64.tar.gz"
 AT_sparc_solaris="jdk-${MY_PV}-solaris-sparc.tar.gz"
@@ -32,7 +32,7 @@ FXDEMOS_linux="javafx_samples-${FX_VERSION}-linux.zip"
 
 DEMOS_x86="${FXDEMOS_linux} jdk-${MY_PV}-linux-i586-demos.tar.gz"
 DEMOS_amd64="${FXDEMOS_linux} jdk-${MY_PV}-linux-x64-demos.tar.gz"
-DEMOS_arm="${FXDEMOS_linux} jdk-${MY_PV}-linux-arm-sfp-demos.tar.gz"
+DEMOS_arm="${FXDEMOS_linux} jdk-${MY_PV}-linux-arm-vfp-sflt-demos.tar.gz jdk-${MY_PV}-linux-arm-vfp-hflt-demos.tar.gz"
 DEMOS_x86_solaris="jdk-${MY_PV}-solaris-i586-demos.tar.gz"
 DEMOS_x64_solaris="${DEMOS_x86_solaris} jdk-${MY_PV}-solaris-x64-demos.tar.gz"
 DEMOS_sparc_solaris="jdk-${MY_PV}-solaris-sparc-demos.tar.gz"
@@ -56,7 +56,7 @@ SRC_URI+=" jce? ( ${JCE_FILE} )"
 
 LICENSE="Oracle-BCLA-JavaSE examples? ( BSD )"
 SLOT="1.7"
-KEYWORDS="~amd64 -arm x86 ~amd64-linux ~x86-linux ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
+KEYWORDS="amd64 x86 ~amd64-linux ~x86-linux ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
 IUSE="+X alsa derby doc examples +fontconfig jce nsplugin pax_kernel source"
 
 RESTRICT="fetch strip"
@@ -118,6 +118,23 @@ pkg_nofetch() {
 	use jce && check_tarballs_available "${JCE_URI}" "${JCE_FILE}"
 }
 
+src_unpack() {
+	# Special case for ARM soft VS hard float.
+	if use arm ; then
+		if [[ ${CHOST} == *-hardfloat-* ]] ; then
+			unpack jdk-${MY_PV}-linux-arm-vfp-hflt.tar.gz
+			use examples && unpack jdk-${MY_PV}-linux-arm-vfp-hflt-demos.tar.gz
+		else
+			unpack jdk-${MY_PV}-linux-arm-vfp-sflt.tar.gz
+			use examples && unpack jdk-${MY_PV}-linux-arm-vfp-sflt-demos.tar.gz
+		fi
+		# use examples && unpack javafx_samples-${FX_VERSION}-linux.zip
+		# use jce && unpack ${JCE_FILE}
+	else
+		default
+	fi
+}
+
 src_prepare() {
 	if use jce; then
 		mv "${WORKDIR}"/${JCE_DIR} "${S}"/jre/lib/security/ || die
@@ -130,10 +147,18 @@ src_compile() {
 
 	# see bug #207282
 	einfo "Creating the Class Data Sharing archives"
-	if use x86; then
-		bin/java -client -Xshare:dump || die
-	fi
-	bin/java -server -Xshare:dump || die
+	case ${ARCH} in
+		arm|ia64)
+			bin/java -client -Xshare:dump || die
+			;;
+		x86)
+			bin/java -client -Xshare:dump || die
+			bin/java -server -Xshare:dump || die
+			;;
+		*)
+			bin/java -server -Xshare:dump || die
+			;;
+	esac
 
 	# Create files used as storage for system preferences.
 	mkdir jre/.systemPrefs || die
