@@ -12,11 +12,11 @@ JCE_URI="http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2
 
 # This is a list of archs supported by this update.
 # Currently arm comes and goes.
-AT_AVAILABLE=( amd64 arm x86 x64-solaris sparc64-solaris x86-macos x64-macos )
+AT_AVAILABLE=( amd64 )
 
 # Sometimes some or all of the demos are missing, this is to not have to rewrite half
 # the ebuild when it happens.
-DEMOS_AVAILABLE=( amd64 arm x86 x64-solaris sparc64-solaris x86-macos x64-macos )
+DEMOS_AVAILABLE=( amd64 )
 
 if [[ "$(get_version_component_range 4)" == 0 ]] ; then
 	S_PV="$(get_version_component_range 1-3)"
